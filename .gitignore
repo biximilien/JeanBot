@@ -1,2 +1,5 @@
 .env
 .direnv
+!.env.sample
+
+/redis-data
