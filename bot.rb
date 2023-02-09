@@ -5,6 +5,7 @@ require "./lib/open_ai"
 require "./lib/discord"
 require "./lib/discord/permission"
 require "./lib/backend"
+require "./lib/moderation_strategy"
 
 # setup logging
 $logger = Logger.new(STDOUT)
@@ -23,6 +24,11 @@ include Backend
 include OpenAI
 
 initialize_backend()
+
+strategies = []
+strategies << WatchListStrategy.new(self)
+strategies << RemoveMessageStrategy.new(self)
+# strategies << RewriteMessageStrategy.new
 
 # bot commands
 bot.message do |event|
@@ -55,20 +61,10 @@ bot.message do |event|
       end
     end
   else
-    # watched users loop
-    if get_watch_list_users(event.server.id.to_i).include?(event.user.id.to_i)
-      case analysed = sentiment_analysis(event.message.content)
-      when /Positive/i
-        $logger.info("Sentiment Analysis: Positive")
-      when /Negative/i
-        $logger.info("Sentiment Analysis: Negative")
-        edited = moderation_rewrite(event.message.content)
-        $logger.info(edited)
-        reason = "Moderation (rewriting due to negative sentiment)"
-        event.message.delete(reason)
-        event.respond("~~#{event.message.content}~~" + "\n" + edited)
-      else
-        $logger.info("Sentiment Analysis: Neutral")
+    # execute enabled strategies
+    strategies.each do |strategy|
+      if strategy.condition(event)
+        strategy.execute(event)
       end
     end
   end
@@ -96,7 +92,10 @@ bot.ready do |event|
   end
 end
 
-# This method call has to be put at the end of your script, it is what makes the bot actually connect to Discord. If you
-# leave it out (try it!) the script will simply stop and the bot will not appear online.
-at_exit { bot.stop }
-bot.run
+begin
+  at_exit { bot.stop }
+  bot.run
+rescue Interrupt
+  $logger.info("Exiting...")
+  exit
+end

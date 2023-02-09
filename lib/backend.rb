@@ -3,6 +3,7 @@ require "redis"
 module Backend
   def initialize_backend()
     @redis ||= Redis.new(url: REDIS_URL)
+    raise "Redis connection failed" unless @redis.ping == "PONG"
   end
 
   def add_user_to_watch_list(server_id, user_id)

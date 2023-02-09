@@ -30,4 +30,14 @@ describe OpenAI do
       end
     end
   end
+
+  describe "#moderation_rewrite" do
+    it "returns a string" do
+      expect(moderation_rewrite("I hate you")).to be_a(String)
+    end
+
+    it "rewrites the sentence" do
+      expect(moderation_rewrite("I hate you")).not_to eq("I hate you")
+    end
+  end
 end
