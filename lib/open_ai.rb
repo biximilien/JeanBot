@@ -1,29 +1,44 @@
 require "json"
 require "net/http"
 require "uri"
+require "opentelemetry/sdk"
+OpenAITracer = OpenTelemetry.tracer_provider.tracer("openai", "1.0")
 
 module OpenAI
   def query(url, params)
-    uri = URI.parse(url)
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-    request = Net::HTTP::Post.new(uri.request_uri)
-    request["Content-Type"] = "application/json"
-    request["Authorization"] = "Bearer #{OPENAI_API_KEY}"
-    request.body = params.to_json
-    $logger.debug(request.body)
+    OpenAITracer.in_span(url, attributes: {
+                                "http.url" => url,
+                                "http.body" => params.to_json,
+                                "http.method" => "POST",
+                              }) do |span|
+      begin
+        uri = URI.parse(url)
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = true
+        request = Net::HTTP::Post.new(uri.request_uri)
+        request["Content-Type"] = "application/json"
+        request["Authorization"] = "Bearer #{OPENAI_API_KEY}"
+        request.body = params.to_json
+        $logger.debug(request.body)
+        span.add_event("OpenAI API call")
 
-    response = http.request(request)
-    $logger.debug(response.body)
+        response = http.request(request)
+        $logger.debug(response.body)
+        span.add_event("OpenAI API response")
 
-    ret = JSON.parse(response.body)
-    if ret.include?("error")
-      ret["error"]
-    else
-      ret["choices"][0]["text"].strip
+        ret = JSON.parse(response.body)
+        if ret.include?("error")
+          ret["error"]
+        else
+          val = ret["choices"][0]["text"].strip
+          span.set_attribute("openai.completions", val)
+          val
+        end
+      rescue Net::ReadTimeout
+        span.add_event("OpenAI API timeout")
+        "Timeout"
+      end
     end
-  rescue Net::ReadTimeout
-    "Timeout"
   end
 
   # query OpenAI completions API for sentiment analysis

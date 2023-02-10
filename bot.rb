@@ -6,6 +6,7 @@ require "./lib/discord"
 require "./lib/discord/permission"
 require "./lib/backend"
 require "./lib/moderation_strategy"
+require "./lib/opentelemetry"
 
 # setup logging
 $logger = Logger.new(STDOUT)
@@ -64,7 +65,7 @@ bot.message do |event|
     # execute enabled strategies
     strategies.each do |strategy|
       if strategy.condition(event)
-        strategy.execute(event)
+        strategy.execute(event) and break
       end
     end
   end
