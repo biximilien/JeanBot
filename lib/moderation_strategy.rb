@@ -14,7 +14,7 @@ end
 
 class RemoveMessageStrategy < ModerationStrategy
   def condition(event)
-    case analysed = sentiment_analysis(event.message.content)
+    case analysed = sentiment_analysis(event.message.content, event.user)
     when /Positive/i
       $logger.info("Sentiment Analysis: Positive")
       false
@@ -37,7 +37,7 @@ class WatchListStrategy < ModerationStrategy
   def condition(event)
     # watched users loop
     if @bot.get_watch_list_users(event.server.id.to_i).include?(event.user.id.to_i)
-      case analysed = sentiment_analysis(event.message.content)
+      case analysed = sentiment_analysis(event.message.content, event.user)
       when /Positive/i
         $logger.info("Sentiment Analysis: Positive")
         false
@@ -52,7 +52,7 @@ class WatchListStrategy < ModerationStrategy
   end
 
   def execute(event)
-    edited = moderation_rewrite(event.message.content)
+    edited = moderation_rewrite(event.message.content, event.user)
     $logger.info(edited)
     reason = "Moderation (rewriting due to negative sentiment)"
     event.message.delete(reason)
