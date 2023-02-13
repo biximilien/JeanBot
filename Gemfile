@@ -15,3 +15,8 @@ gem "redis"
 
 # testing
 gem "rspec", group: :test
+
+# opentelemetry
+gem 'opentelemetry-sdk'
+gem 'opentelemetry-exporter-otlp'
+gem 'opentelemetry-instrumentation-all'
